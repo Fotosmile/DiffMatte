@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "diffmatte"
+version = "0.1.0"
+description = "Diffusion for Natural Image Matting"
+authors = ["Yihan Hu and Yiheng Lin and Wei Wang and Yao Zhao and Yunchao Wei and Humphrey Shi"]
+readme = "README.md"
+packages = [{include = "diffmatte"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = "2.0.0"
+torchvision = "0.15.1"
+opencv-contrib-python = "^4.7.0.72"
+timm = "0.6.7"
+setuptools = "^67.8.0"
+easydict = "^1.13"
+wget = "^3.2"
+scikit-image = "^0.22.0"
+fairscale = "^0.4.13"
+einops = "^0.6.1"
+numpy = "^1.24.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
