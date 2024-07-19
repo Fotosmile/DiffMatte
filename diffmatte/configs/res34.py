@@ -8,7 +8,7 @@ from .common.scheduler import lr_multiplier
 from .common.dataloader import dataloader
 from .common.dataloader import train_dataset
 from .common.loss import loss
-from modeling.backbone.res34 import BasicBlock
+from diffmatte.modeling.backbone.res34 import BasicBlock
 
 train.max_iter = int(43100 / 20 / 2 * 150)
 train.checkpointer.period = int(43100 / 20 / 2 * 10)

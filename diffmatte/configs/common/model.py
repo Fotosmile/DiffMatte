@@ -1,10 +1,10 @@
 import torch.nn as nn
 from functools import partial
 from detectron2.config import LazyCall as L
-from modeling import ViTMatte, DiffusionMattingCriterion, ViT
-from modeling.decoder.DUNet import DUNet
-from modeling.meta_arch.difmodel import DifModel
-from modeling import create_backbone
+from diffmatte.modeling import ViTMatte, DiffusionMattingCriterion, ViT
+from diffmatte.modeling.decoder.DUNet import DUNet
+from diffmatte.modeling.meta_arch.difmodel import DifModel
+from diffmatte.modeling import create_backbone
 
 # Base
 # embed_dim, num_heads = 384, 6

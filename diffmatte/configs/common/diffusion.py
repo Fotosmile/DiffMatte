@@ -1,6 +1,6 @@
 from detectron2.config import LazyCall as L
-from modeling.diffusion.script_utils import create_gaussian_diffusion, create_uniform_gaussian_diffusion
-from modeling.criterion.matting_criterion import DiffusionMattingCriterion
+from diffmatte.modeling.diffusion.script_utils import create_gaussian_diffusion, create_uniform_gaussian_diffusion
+from diffmatte.modeling.criterion.matting_criterion import DiffusionMattingCriterion
 
 uniform_timesteps = True
 

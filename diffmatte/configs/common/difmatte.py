@@ -1,5 +1,5 @@
 from detectron2.config import LazyCall as L
-from modeling.meta_arch.difmatte import DifMatte
+from diffmatte.modeling.meta_arch.difmatte import DifMatte
 
 
 use_ddim = True

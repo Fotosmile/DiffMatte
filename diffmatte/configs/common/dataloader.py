@@ -3,7 +3,7 @@ from torch.utils.data import DataLoader
 from detectron2.config import LazyCall as L
 from torch.utils.data.distributed import DistributedSampler
 
-from data import ImageFileTrain, DataGenerator, ImageFileTest
+from diffmatte.data import ImageFileTrain, DataGenerator, ImageFileTest
 
 #Dataloader
 train_dataset = L(DataGenerator)(

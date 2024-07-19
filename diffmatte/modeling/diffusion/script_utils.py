@@ -1,7 +1,7 @@
-import modeling.diffusion.gaussian_diffusion as gd
-from modeling.diffusion.respace import SpacedDiffusion, space_timesteps
-import modeling.diffusion.uniform_gauss as ug
-from modeling.diffusion.uniform_gauss import UniformGauss
+import diffmatte.modeling.diffusion.gaussian_diffusion as gd
+from diffmatte.modeling.diffusion.respace import SpacedDiffusion, space_timesteps
+import diffmatte.modeling.diffusion.uniform_gauss as ug
+from diffmatte.modeling.diffusion.uniform_gauss import UniformGauss
 
 def create_gaussian_diffusion(
     *,
