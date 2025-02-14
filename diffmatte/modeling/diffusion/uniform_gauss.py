@@ -34,32 +34,37 @@ def get_unknown_tensor(trimap):
         weight = trimap.eq(1).float()
     return weight
 
+
 # normalize and unnormalize image
 
 def normalize_img(x):
     return x * 2 - 1
 
+
 def unnormalize_img(x):
     return (x + 1) * 0.5
+
 
 def identity(x):
     return x
 
 
+def safe_div(numer, denom, eps=1e-10):
+    return numer / denom.clamp(min=eps)
 
-def safe_div(numer, denom, eps = 1e-10):
-    return numer / denom.clamp(min = eps)
 
 # normalize variance of noised image, if scale is not 1
 
-def normalize_img_variance(x, eps = 1e-5):
-    std = reduce(x, 'b c h w -> b 1 1 1', partial(torch.std, unbiased = False))
-    return x / std.clamp(min = eps)
+def normalize_img_variance(x, eps=1e-5):
+    std = reduce(x, 'b c h w -> b 1 1 1', partial(torch.std, unbiased=False))
+    return x / std.clamp(min=eps)
+
 
 # helper functions
 
-def log(t, eps = 1e-20):
-    return torch.log(t.clamp(min = eps))
+def log(t, eps=1e-20):
+    return torch.log(t.clamp(min=eps))
+
 
 def right_pad_dims_to(x, t):
     padding_dims = x.ndim - t.ndim
@@ -67,57 +72,63 @@ def right_pad_dims_to(x, t):
         return t
     return t.view(*t.shape, *((1,) * padding_dims))
 
+
 # noise schedules
 
-def simple_linear_schedule(t, clip_min = 1e-9):
-    return (1 - t).clamp(min = clip_min)
+def simple_linear_schedule(t, clip_min=1e-9):
+    return (1 - t).clamp(min=clip_min)
 
-def cosine_schedule(t, start = 0, end = 1, tau = 1, clip_min = 1e-9):
+
+def cosine_schedule(t, start=0, end=1, tau=1, clip_min=1e-9):
     power = 2 * tau
     v_start = math.cos(start * math.pi / 2) ** power
     v_end = math.cos(end * math.pi / 2) ** power
     output = torch.cos((t * (end - start) + start) * math.pi / 2) ** power
     output = (v_end - output) / (v_end - v_start)
-    return output.clamp(min = clip_min)
+    return output.clamp(min=clip_min)
 
-def sigmoid_schedule(t, start = -3, end = 3, tau = 1, clamp_min = 1e-9):
+
+def sigmoid_schedule(t, start=-3, end=3, tau=1, clamp_min=1e-9):
     v_start = torch.tensor(start / tau).sigmoid()
     v_end = torch.tensor(end / tau).sigmoid()
     gamma = (-((t * (end - start) + start) / tau).sigmoid() + v_end) / (v_end - v_start)
-    return gamma.clamp_(min = clamp_min, max = 1.)
+    return gamma.clamp_(min=clamp_min, max=1.)
 
-def power_schedule(t, start = 0, end = 1, tau = 1, clip_min = 1e-9):
+
+def power_schedule(t, start=0, end=1, tau=1, clip_min=1e-9):
     power = 2 * tau
     v_start = start ** power
     v_end = end ** power
     output = (t * (end - start) + start) ** power
     output = (v_end - output) / (v_end - v_start)
-    return output.clamp(min = clip_min)
+    return output.clamp(min=clip_min)
+
 
 # converting gamma to alpha, sigma or logsnr
 
-def gamma_to_alpha_sigma(gamma, scale = 1):
+def gamma_to_alpha_sigma(gamma, scale=1):
     return torch.sqrt(gamma) * scale, torch.sqrt(1 - gamma)
 
-def gamma_to_log_snr(gamma, scale = 1, eps = 1e-5):
-    return log(gamma * (scale ** 2) / (1 - gamma), eps = eps)
+
+def gamma_to_log_snr(gamma, scale=1, eps=1e-5):
+    return log(gamma * (scale ** 2) / (1 - gamma), eps=eps)
 
 
 class UniformGauss():
     def __init__(
-        self,
-        model_mean_type,
-        criterion,
-        *,
-        timesteps = 1000,
-        uniform_timesteps = True,
-        noise_schedule = None,
-        schedule_kwargs: dict = dict(),
-        time_difference = 0.,
-        scale = 1.,                      # this will be set to < 1. for better convergence when training on higher resolution images
-        min_snr_loss_weight = True,
-        min_snr_gamma = 5,
-        jump_step = -1,
+            self,
+            model_mean_type,
+            criterion,
+            *,
+            timesteps=1000,
+            uniform_timesteps=True,
+            noise_schedule=None,
+            schedule_kwargs: dict = dict(),
+            time_difference=0.,
+            scale=1.,  # this will be set to < 1. for better convergence when training on higher resolution images
+            min_snr_loss_weight=True,
+            min_snr_gamma=5,
+            jump_step=-1,
     ):
         super().__init__()
         self.model_mean_type = model_mean_type
@@ -160,27 +171,29 @@ class UniformGauss():
 
         self.time_difference = time_difference
 
-    def get_sampling_timesteps(self, batch, *, device):
-        times = torch.linspace(1., 0., self.timesteps + 1, device = device)
-        times = repeat(times, 't -> b t', b = batch)
-        times = torch.stack((times[:, :-1], times[:, 1:]), dim = 0)
+    def get_sampling_timesteps(self, batch, *, device, dtype):
+        times = torch.linspace(1., 0., self.timesteps + 1, device=device, dtype=dtype)
+        times = repeat(times, 't -> b t', b=batch)
+        times = torch.stack((times[:, :-1], times[:, 1:]), dim=0)
         if self.jump_step > 0:
-            times_c = torch.linspace(1., 0., self.timesteps + 1, device = 'cpu')
-            times_c = repeat(times_c, 't -> b t', b = batch)
-            times = torch.stack((times_c[:, [0, self.jump_step - 1]].to(device), times_c[:, [self.jump_step, self.timesteps-1]].to(device)), dim = 0)
-        times = times.unbind(dim = -1)
+            times_c = torch.linspace(1., 0., self.timesteps + 1, device='cpu')
+            times_c = repeat(times_c, 't -> b t', b=batch)
+            times = torch.stack((times_c[:, [0, self.jump_step - 1]].to(device),
+                                 times_c[:, [self.jump_step, self.timesteps - 1]].to(device)), dim=0)
+        times = times.unbind(dim=-1)
         return times
 
     @torch.no_grad()
     def ddpm_sample(
-        self, 
-        model, 
-        shape, 
-        condition,
-        noise=None,
-        device=None,
-        sample_list=None,
-        GTalpha=None
+            self,
+            model,
+            shape,
+            condition,
+            noise=None,
+            device=None,
+            dtype=None,
+            sample_list=None,
+            GTalpha=None
     ):
         if device is None:
             device = next(model.parameters()).device
@@ -194,17 +207,16 @@ class UniformGauss():
         else:
             noised_pha = torch.randn(*shape, device=device)
 
-        time_pairs = self.get_sampling_timesteps(batch, device = device)
-
+        time_pairs = self.get_sampling_timesteps(batch, device=device, dtype=dtype)
 
         condition["features"] = None
         counter = 0
         interm = {}
-        for time, time_next in tqdm(time_pairs, desc = 'ddpm sampling loop time step', total = self.timesteps):
+        for time, time_next in tqdm(time_pairs, desc='ddpm sampling loop time step', total=self.timesteps):
 
             # add the time delay
 
-            time_next = (time_next - self.time_difference).clamp(min = 0.)
+            time_next = (time_next - self.time_difference).clamp(min=0.)
 
             model_input = condition
 
@@ -213,9 +225,8 @@ class UniformGauss():
             # maybe_normalized_pha[trimap == 0] = 0
             # maybe_normalized_pha[trimap == 1] = 1
 
-            model_input.update({"x_t":maybe_normalized_pha})
-            model_input.update({"timestep":time})
-            
+            model_input.update({"x_t": maybe_normalized_pha})
+            model_input.update({"timestep": time})
 
             # get predicted x0
             if self.model_mean_type == ModelMeanType.START_X:
@@ -227,7 +238,7 @@ class UniformGauss():
                 model_output = model(model_input, condition["features"])
                 pred, features = model_output["noise"], model_output["feature"]
 
-            condition["features"] = features # 下一个step重复利用features
+            condition["features"] = features  # 下一个step重复利用features
 
             # get log(snr)
             gamma = self.gamma_schedule(time)
@@ -241,12 +252,11 @@ class UniformGauss():
 
             # calculate x0 and noise
 
-            if self.model_mean_type == ModelMeanType.START_X: #case2 model预测x0
+            if self.model_mean_type == ModelMeanType.START_X:  # case2 model预测x0
                 pred_xstart = pred
-            else: #case3 预测eps的期望值
+            else:  # case3 预测eps的期望值
                 pred_xstart = safe_div(noised_pha - sigma * pred, alpha)
                 # pred_xstart = safe_div(maybe_normalized_pha - sigma * pred, alpha)
-
 
             # clip x0
             pred_xstart.clamp_(-1., 1.)
@@ -258,8 +268,8 @@ class UniformGauss():
                     alpha_pred[trimap == 0] = 0.0
                     alpha_pred[trimap == 2] = 1.0
 
-                    alpha_pred = alpha_pred[0, 0, ...].data.cpu().numpy() * 255
-                    interm.update({"step_"+str(counter): alpha_pred})
+                    alpha_pred = alpha_pred[0, 0, ...].data * 255
+                    interm.update({"step_" + str(counter): alpha_pred})
                 if counter == sample_list[-1]:
                     return interm
             counter += 1
@@ -285,7 +295,7 @@ class UniformGauss():
                 rearrange(time_next > 0, 'b -> b 1 1 1'),
                 torch.randn_like(noised_pha),
                 torch.zeros_like(noised_pha)
-            ) # no noise when t==0
+            )  # no noise when t==0
 
             noised_pha = mean + (0.5 * log_variance).exp() * noise
             # cv2.imwrite("/home/yihan.hu/learner/DiffusionMattingV3/detail/noised_pha_pre"+str(time.item())+".png", noised_pha.cpu().numpy() * 255)
@@ -297,22 +307,23 @@ class UniformGauss():
             alpha_pred[trimap == 0] = 0.0
             alpha_pred[trimap == 2] = 1.0
 
-            alpha_pred = alpha_pred[0, 0, ...].data.cpu().numpy() * 255
-            interm.update({"step_"+str(counter).zfill(3): alpha_pred})
+            alpha_pred = alpha_pred[0, 0, ...].data * 255
+            interm.update({"step_" + str(counter).zfill(3): alpha_pred})
             return interm
         else:
             return unnormalize_img(noised_pha / self.scale)
 
     @torch.no_grad()
     def ddim_sample(
-        self,
-        model,
-        shape, 
-        condition,
-        noise=None,
-        device=None,
-        sample_list = None,
-        GTalpha=None
+            self,
+            model,
+            shape,
+            condition,
+            noise=None,
+            device=None,
+            dtype=None,
+            sample_list=None,
+            GTalpha=None
     ):
         if device is None:
             device = next(model.parameters()).device
@@ -324,14 +335,14 @@ class UniformGauss():
         if noise is not None:
             noised_pha = noise
         else:
-            noised_pha = torch.randn(*shape, device=device)
+            noised_pha = torch.randn(*shape, device=device, dtype=dtype)
 
-        time_pairs = self.get_sampling_timesteps(batch, device = device)
+        time_pairs = self.get_sampling_timesteps(batch, device=device, dtype=dtype)
 
         condition["features"] = None
         counter = 0
         interm = {}
-        for times, times_next in tqdm(time_pairs, desc = 'ddim sampling loop time step'):
+        for times, times_next in time_pairs:
 
             # get times and noise levels
 
@@ -345,7 +356,7 @@ class UniformGauss():
 
             # add the time delay
 
-            times_next = (times_next - self.time_difference).clamp(min = 0.)
+            times_next = (times_next - self.time_difference).clamp(min=0.)
 
             model_input = condition
             maybe_normalized_pha = self.maybe_normalize_img_variance(noised_pha)
@@ -353,8 +364,8 @@ class UniformGauss():
             # maybe_normalized_pha[trimap == 0] = 0
             # maybe_normalized_pha[trimap == 1] = 1
 
-            model_input.update({"x_t":maybe_normalized_pha})
-            model_input.update({"timestep":times})
+            model_input.update({"x_t": maybe_normalized_pha.to(device, dtype)})
+            model_input.update({"timestep": times})
 
             # predict x0
             if self.model_mean_type == ModelMeanType.START_X:
@@ -365,12 +376,12 @@ class UniformGauss():
                 # model_output = model(input)["noise"]
                 model_output = model(model_input, condition["features"])
                 pred, features = model_output["noise"], model_output["feature"]
-            condition["features"] = features # 下一个step重复利用features
+            condition["features"] = features  # 下一个step重复利用features
 
             # calculate x0 and noise
-            if self.model_mean_type == ModelMeanType.START_X: #case2 model预测x0
+            if self.model_mean_type == ModelMeanType.START_X:  # case2 model预测x0
                 pred_xstart = pred
-            else: #case3 预测eps的期望值
+            else:  # case3 预测eps的期望值
                 pred_xstart = safe_div(noised_pha - sigma * pred, alpha)
 
             # get predicted noise
@@ -390,8 +401,8 @@ class UniformGauss():
                     alpha_pred[trimap == 0] = 0.0
                     alpha_pred[trimap == 2] = 1.0
 
-                    alpha_pred = alpha_pred[0, 0, ...].data.cpu().numpy() * 255
-                    interm.update({"step_"+str(counter).zfill(3): alpha_pred})
+                    alpha_pred = alpha_pred[0, 0, ...].data * 255
+                    interm.update({"step_" + str(counter).zfill(3): alpha_pred})
                 if counter == sample_list[-1]:
                     return interm
             counter += 1
@@ -408,15 +419,14 @@ class UniformGauss():
             alpha_pred[trimap == 0] = 0.0
             alpha_pred[trimap == 2] = 1.0
 
-            alpha_pred = alpha_pred[0, 0, ...].data.cpu().numpy() * 255
-            interm.update({"step_"+str(counter).zfill(3): alpha_pred})
+            alpha_pred = alpha_pred[0, 0, ...].data * 255
+            interm.update({"step_" + str(counter).zfill(3): alpha_pred})
             return interm
         else:
             return unnormalize_img(noised_pha / self.scale)
 
-
-
-    def training_losses(self, model, input, model_kwargs=None, noise=None, self_align_stage1=False, self_align_stage2=False):
+    def training_losses(self, model, input, model_kwargs=None, noise=None, self_align_stage1=False,
+                        self_align_stage2=False):
         images, trimap, pha = input['image'], input['trimap'], input['alpha']
         fg, bg = input['fg'], input['bg']
 
@@ -426,7 +436,7 @@ class UniformGauss():
 
         batch, c, h, w = pha.shape
         device = pha.device
-        
+
         pha = normalize_img(pha)
 
         if noise is None:
@@ -437,12 +447,12 @@ class UniformGauss():
         if self_align_stage1:
             # print("self_align_stage1")
             temp_times = torch.ones((batch,), device=device).float()
-            times = torch.zeros((batch,), device = device).float().uniform_(0, 1.)
+            times = torch.zeros((batch,), device=device).float().uniform_(0, 1.)
             noised_pha_temp = noise
         elif self_align_stage2:
             # print("self_align_stage2")
-            difference = torch.zeros((batch,), device = device).float().uniform_(0, 1.)
-            times = torch.zeros((batch,), device = device).float().uniform_(0, 1.) * (1 - difference)
+            difference = torch.zeros((batch,), device=device).float().uniform_(0, 1.)
+            times = torch.zeros((batch,), device=device).float().uniform_(0, 1.) * (1 - difference)
 
             # times = torch.zeros((batch,), device = device).float().uniform_(0, 1.)
             # difference = torch.zeros((batch,), device = device).float().uniform_(0, 1.) * (1 - times)
@@ -453,17 +463,17 @@ class UniformGauss():
             noised_pha_temp = alpha_temp * pha + sigma_temp * noise
         else:
             temp_times = None
-            times = torch.zeros((batch,), device = device).float().uniform_(0, 1.)
-        
+            times = torch.zeros((batch,), device=device).float().uniform_(0, 1.)
+
         gamma = self.gamma_schedule(times)
         padded_gamma = right_pad_dims_to(pha, gamma)
-        alpha, sigma =  gamma_to_alpha_sigma(padded_gamma, self.scale)
+        alpha, sigma = gamma_to_alpha_sigma(padded_gamma, self.scale)
 
         pha_pred = None
         if temp_times != None:
             maybe_normalized_pha_temp = self.maybe_normalize_img_variance(noised_pha_temp)
-            input.update({"timestep":temp_times})
-            input.update({"x_t":maybe_normalized_pha_temp})
+            input.update({"timestep": temp_times})
+            input.update({"x_t": maybe_normalized_pha_temp})
 
             features = model(input, intermidate_out=True)['feature']
             if self.model_mean_type == ModelMeanType.START_X:
@@ -480,12 +490,11 @@ class UniformGauss():
         else:
             noised_pha = alpha * pha + sigma * noise
             features = None
-        
-        
+
         maybe_normalized_pha = self.maybe_normalize_img_variance(noised_pha)
 
-        input.update({"timestep":times})
-        input.update({"x_t":maybe_normalized_pha})
+        input.update({"timestep": times})
+        input.update({"x_t": maybe_normalized_pha})
 
         if self.model_mean_type == ModelMeanType.START_X:
             model_output = model(input, features=features)["phas"]
@@ -499,7 +508,7 @@ class UniformGauss():
         assert model_output.shape == targets.shape == pha.shape
 
         tensorboard_images = {}
-        sample_map = get_unknown_tensor(trimap*2)
+        sample_map = get_unknown_tensor(trimap * 2)
         if self.model_mean_type == ModelMeanType.START_X:
             pred_alpha = model_output
             tensorboard_images['x_start_pred_by_Unet'] = unnormalize_img(model_output)
@@ -511,9 +520,8 @@ class UniformGauss():
             tensorboard_images['x_start_pred_by_eps'] = unnormalize_img(pred_alpha)
         else:
             raise ValueError(f'invalid 387 line model_mean_type {self.model_mean_type}')
-        
+
         tensorboard_images['x_t'] = noised_pha
-        
 
         terms = self.criterion(sample_map, model_output, pred_alpha, targets, pha, fg, bg, images, pha_pred)
 

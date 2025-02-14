@@ -49,7 +49,8 @@ class DifMatte(nn.Module):
                     batched_inputs["trimap"].shape,
                     batched_inputs,
                     sample_list=sample_list,
-                    GTalpha=alpha
+                    GTalpha=alpha,
+                    dtype=batched_inputs["trimap"].dtype,
                 )
             else:
                 sample_fn = (
@@ -61,6 +62,7 @@ class DifMatte(nn.Module):
                     batched_inputs,
                     clip_denoised=self.args["clip_denoised"],
                     model_kwargs=None,
+                    dtype=batched_inputs["trimap"].dtype,
                 )
 
             if sample_list == None:
@@ -69,7 +71,7 @@ class DifMatte(nn.Module):
                 alpha_pred[trimap == 0] = 0.0
                 alpha_pred[trimap == 2] = 1.0
 
-                alpha_pred = alpha_pred[0, 0, ...].data.cpu().numpy() * 255
+                alpha_pred = alpha_pred[0, 0, ...].data * 255
                 return alpha_pred
             else:
                 return sample

@@ -4,6 +4,7 @@ from torch import nn, Tensor
 from torch.nn import functional as F
 from typing import Callable, Optional
 
+
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""
     return nn.Conv2d(
@@ -17,13 +18,15 @@ def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, d
         dilation=dilation,
     )
 
+
 def convT(in_planes: int, out_planes: int):
-    return nn.ConvTranspose2d(in_planes, 
-                              out_planes, 
-                              kernel_size=4, 
-                              stride=2, 
-                              padding=1, 
+    return nn.ConvTranspose2d(in_planes,
+                              out_planes,
+                              kernel_size=4,
+                              stride=2,
+                              padding=1,
                               bias=False)
+
 
 class Downsample(nn.Module):
     """
@@ -46,6 +49,7 @@ class Downsample(nn.Module):
     def forward(self, x):
         assert x.shape[1] == self.in_channels
         return self.op(x)
+
 
 class Upsample(nn.Module):
     """
@@ -77,6 +81,7 @@ class Upsample(nn.Module):
             x = self.conv(x)
         return x
 
+
 def timestep_embedding(timesteps, dim, max_period=10000):
     """
     Create sinusoidal timestep embeddings.
@@ -89,28 +94,29 @@ def timestep_embedding(timesteps, dim, max_period=10000):
     """
     half = dim // 2
     freqs = torch.exp(
-        -math.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half
-    ).to(device=timesteps.device)
-    args = timesteps[:, None].float() * freqs[None]
+        -math.log(max_period) * torch.arange(start=0, end=half, dtype=timesteps.dtype, device=timesteps.device) / half
+    )
+    args = timesteps[:, None] * freqs[None]
     embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
     if dim % 2:
         embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
     return embedding
 
+
 class BasicDownBlock(nn.Module):
     expansion: int = 1
 
     def __init__(
-        self,
-        inplanes: int,
-        planes: int,
-        emb_channels: int,
-        stride: int = 1,
-        groups: int = 1,
-        base_width: int = 64,
-        dilation: int = 1,
-        norm_layer: Optional[Callable[..., nn.Module]] = None,
-        downsample = None
+            self,
+            inplanes: int,
+            planes: int,
+            emb_channels: int,
+            stride: int = 1,
+            groups: int = 1,
+            base_width: int = 64,
+            dilation: int = 1,
+            norm_layer: Optional[Callable[..., nn.Module]] = None,
+            downsample=None
     ) -> None:
         super().__init__()
         if norm_layer is None:
@@ -160,15 +166,15 @@ class BasicUpBlock(nn.Module):
     expansion: int = 1
 
     def __init__(
-        self,
-        inplanes: int,
-        planes: int,
-        emb_channels: int,
-        groups: int = 1,
-        base_width: int = 64,
-        dilation: int = 1,
-        norm_layer: Optional[Callable[..., nn.Module]] = None,
-        upsample = None
+            self,
+            inplanes: int,
+            planes: int,
+            emb_channels: int,
+            groups: int = 1,
+            base_width: int = 64,
+            dilation: int = 1,
+            norm_layer: Optional[Callable[..., nn.Module]] = None,
+            upsample=None
     ) -> None:
         super().__init__()
         if norm_layer is None:
@@ -217,10 +223,11 @@ class Matting_Head(nn.Module):
     """
     Simple Matting Head, containing only conv3x3 and conv1x1 layers.
     """
+
     def __init__(
-        self,
-        in_chans = 32,
-        mid_chans = 16,
+            self,
+            in_chans=32,
+            mid_chans=16,
     ):
         super().__init__()
         self.matting_convs = nn.Sequential(
@@ -228,20 +235,21 @@ class Matting_Head(nn.Module):
             nn.BatchNorm2d(mid_chans),
             nn.ReLU(True),
             nn.Conv2d(mid_chans, 1, 1, 1, 0)
-            )
+        )
 
     def forward(self, x):
         x = self.matting_convs(x)
 
         return x
 
+
 class DUNet(nn.Module):
     def __init__(
-        self,
-        model_channels,
-        emb_channels,
-        downsample_in = [7, 32, 64, 128],
-        upsample_in = [384, 256, 128, 64, 32],
+            self,
+            model_channels,
+            emb_channels,
+            downsample_in=[7, 32, 64, 128],
+            upsample_in=[384, 256, 128, 64, 32],
     ):
         super().__init__()
         assert len(downsample_in) == len(upsample_in) - 1
@@ -249,7 +257,7 @@ class DUNet(nn.Module):
         self.model_channels = model_channels
 
         self.down_blks = nn.ModuleList()
-        self.time_embed = nn.Sequential( #对输入t进行编码
+        self.time_embed = nn.Sequential(  # 对输入t进行编码
             nn.Linear(model_channels, emb_channels),
             nn.ReLU(),
             nn.Linear(emb_channels, emb_channels),
@@ -257,13 +265,13 @@ class DUNet(nn.Module):
         for i in range(len(downsample_in) - 1):
             downsample = Downsample(
                 in_channels=downsample_in[i],
-                channels=downsample_in[i+1]
+                channels=downsample_in[i + 1]
             )
             self.down_blks.append(
                 BasicDownBlock(
                     emb_channels=emb_channels,
                     inplanes=downsample_in[i],
-                    planes=downsample_in[i+1],
+                    planes=downsample_in[i + 1],
                     stride=2,
                     downsample=downsample
                 )
@@ -283,20 +291,20 @@ class DUNet(nn.Module):
         for i in range(1, len(upsample_in) - 1):
             upsample = Upsample(
                 in_channels=upsample_in[i] + downsample_in[-i],
-                channels=upsample_in[i+1],
+                channels=upsample_in[i + 1],
                 use_conv=True
             )
             self.up_blks.append(
                 BasicUpBlock(
                     emb_channels=emb_channels,
                     inplanes=upsample_in[i] + downsample_in[-i],
-                    planes=upsample_in[i+1],
+                    planes=upsample_in[i + 1],
                     upsample=upsample
                 )
             )
 
         self.matting_head = Matting_Head(
-            in_chans = upsample_in[-1],
+            in_chans=upsample_in[-1],
         )
 
     def forward(self, features, inputs, timesteps):
@@ -309,11 +317,11 @@ class DUNet(nn.Module):
             details.append(dfeatures)
         hfeatures = self.mid_blk(features, embs)
         for i in range(len(self.up_blks)):
-            hfeatures = torch.cat([hfeatures, details[-(i+1)]], dim=1)
+            hfeatures = torch.cat([hfeatures, details[-(i + 1)]], dim=1)
             hfeatures = self.up_blks[i](hfeatures, embs)
-        
+
         noise = self.matting_head(hfeatures)
-        
+
         phas = torch.sigmoid(noise) * 2 - 1  # normalize pred_x0
 
         return {'phas': phas, 'noise': noise}
@@ -327,7 +335,7 @@ if __name__ == '__main__':
     ).to(device)
     features = torch.rand(7, 384, 32, 32).to(device)
     inputs = torch.rand(4, 4, 512, 512).to(device)
-    timesteps = torch.randint(low=0, high=200, size=(4, )).to(device)
+    timesteps = torch.randint(low=0, high=200, size=(4,)).to(device)
 
     out = model(features, inputs, timesteps)
     phas = out['phas']
