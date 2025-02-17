@@ -8,8 +8,8 @@ packages = [{include = "diffmatte"}]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-torch = "2.0.0"
-torchvision = "0.15.1"
+torch = "2.5.1"
+torchvision = "0.20.1"
 opencv-contrib-python = "^4.7.0.72"
 timm = "0.6.7"
 setuptools = "^67.8.0"
