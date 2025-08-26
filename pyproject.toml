@@ -7,9 +7,9 @@ readme = "README.md"
 packages = [{include = "diffmatte"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-torch = "2.5.1"
-torchvision = "0.20.1"
+python = ">=3.10,<3.14"
+torch = "^2.8.0"
+torchvision = "^0.23.0"
 opencv-contrib-python = "4.10.0.84"
 timm = "0.6.7"
 setuptools = "^67.8.0"
